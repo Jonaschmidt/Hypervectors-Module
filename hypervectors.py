@@ -98,7 +98,6 @@ class Hypervector:
 # TODO: docstrings
 # TODO: non-integer support
 # TODO: implement custom increment parameter (e.g., the value range is from 0-256 but in increments of 0.5)
-@staticmethod
 def gen_L_HVs(hv_size: Optional[int]=256, value_range: Optional[Tuple[int, int]]=None):
     if value_range == None:
         value_range = (0, hv_size)
@@ -136,19 +135,16 @@ def gen_L_HVs(hv_size: Optional[int]=256, value_range: Optional[Tuple[int, int]]
     return L_HVs
 
 # performs element-wise addition on two Hypervectors and returns the resulting Hypervector
-@staticmethod
 def add(hv1, hv2):
     res_tensor = tf.add(hv1.tensor, hv2.tensor)
     return Hypervector(tensor=res_tensor)
 
 # performs element-wise mulitplication on two Hypervectors and returns the resulting Hypervector
-@staticmethod
 def multiply(hv1, hv2):
     res_tensor = tf.multiply(hv1.tensor, hv2.tensor)
     return Hypervector(tensor=res_tensor)
 
 # returns [-1, 1], with 0 denoting complete orthogonality
-@staticmethod
 def cos_similarity(hv1, hv2) -> float:
     '''
     Computes the cosine similarity between two Hypervectors.
