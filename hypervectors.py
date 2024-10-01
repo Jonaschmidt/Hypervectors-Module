@@ -16,6 +16,21 @@ sobol_seqs = None
 def _comp_each_to_val(x, val):
     return 1 - (2 * (x > val))
 _comp_each_to_val = np.vectorize(_comp_each_to_val)
+"""TODO: the following lines of code are used more than once (more or less identically) and should be made into a function:
+
+global sobol_dim, sobol_indexer, sobol_seqs
+
+if sobol_seqs is None or sobol_dim < self.size:
+    m = math.ceil(math.log(self.size, 2))
+    sobol_dim = 2**m
+
+    sobol_engine = qmc.Sobol(d=21_201, scramble=False)  # the maximum number of sequences that can be "generated" by this implementation is 21_201
+                                                        # TODO: uncap this maximum number of sequences
+
+    sobol_samples = sobol_engine.random_base2(m=m)
+    sobol_seqs = np.transpose(sobol_samples)
+
+"""
 # ...
 
 # TODO: be more clear about value everywhere, should it just always be a ratio?
@@ -158,7 +173,7 @@ class Hypervector:
 # TODO: docstrings
 # TODO: non-integer support
 # TODO: implement custom increment parameter (e.g., the value range is from 0-256 but in increments of 0.5)
-def gen_L_HVs(hv_size: Optional[int]=256, value_range: Optional[Tuple[int, int]]=None):
+def gen_L_HVs(hv_size: Optional[int]=256, value_range: Optional[Tuple[int, int]]=None, random_method: Literal["tf_random", "Sobol"]="tf_random"):
     if value_range == None:
         value_range = (0, hv_size)
 
@@ -166,31 +181,62 @@ def gen_L_HVs(hv_size: Optional[int]=256, value_range: Optional[Tuple[int, int]]
     max_val = int(value_range[1])
 
     L_HVs = {}
-    L_HVs[min_val] = Hypervector(value=0, size=hv_size)
 
-    num_flips_per = hv_size / (max_val - min_val)
-    num_flips = num_flips_per
+    # tf_random GENERATION
+    if random_method == "tf_random":
+        L_HVs[min_val] = Hypervector(value=0, size=hv_size)
 
-    for i in range((min_val + 1), max_val):
-        neg_indices = tf.where(tf.equal(L_HVs[i - 1].tensor, -1))
-        random_indices = tf.random.shuffle(neg_indices)[:int(num_flips)]
-        next_tensor = tf.identity(L_HVs[i - 1].tensor)
+        num_flips_per = hv_size / (max_val - min_val)
+        num_flips = num_flips_per
 
-        for idx in random_indices:
-            index = idx[0]  # Extract the index from the shape tuple
-            next_tensor = tf.tensor_scatter_nd_update(next_tensor, [[index]], [1])
+        for i in range((min_val + 1), max_val):
+            neg_indices = tf.where(tf.equal(L_HVs[i - 1].tensor, -1))
+            random_indices = tf.random.shuffle(neg_indices)[:int(num_flips)]
+            next_tensor = tf.identity(L_HVs[i - 1].tensor)
 
-        L_HVs[i] = Hypervector(tensor=next_tensor)
+            for idx in random_indices:
+                index = idx[0]  # Extract the index from the shape tuple
+                next_tensor = tf.tensor_scatter_nd_update(next_tensor, [[index]], [1])
 
-        '''
-        if num_flips < 1:
-            num_flips += num_flips_per
-        else:
-            num_flips = num_flips_per
-        optimized to:'''
-        num_flips = (num_flips * (num_flips < 1)) + num_flips_per
+            L_HVs[i] = Hypervector(tensor=next_tensor)
 
-    L_HVs[max_val] = Hypervector(value=hv_size, size=hv_size)
+            '''
+            if num_flips < 1:
+                num_flips += num_flips_per
+            else:
+                num_flips = num_flips_per
+            optimized to:'''
+            num_flips = (num_flips * (num_flips < 1)) + num_flips_per
+
+        L_HVs[max_val] = Hypervector(value=hv_size, size=hv_size)
+
+    # Sobol GENERATION
+    elif random_method == "Sobol":
+        global sobol_dim, sobol_indexer, sobol_seqs
+    
+        if sobol_seqs is None or sobol_dim < hv_size:
+            m = math.ceil(math.log(hv_size, 2))
+            sobol_dim = 2**m
+
+            sobol_engine = qmc.Sobol(d=21_201, scramble=False)  # the maximum number of sequences that can be "generated" by this implementation is 21_201
+                                                                # TODO: uncap this maximum number of sequences
+
+            sobol_samples = sobol_engine.random_base2(m=m)
+            sobol_seqs = np.transpose(sobol_samples)
+        
+        for value in range(min_val, max_val + 1):
+            s_val = ((value - min_val) / (max_val - min_val))
+            sobol_indexer += 1
+
+            tensor = tf.convert_to_tensor(_comp_each_to_val(sobol_seqs[sobol_indexer - 1], s_val)[:hv_size])
+
+            L_HVs[value] = Hypervector(tensor=tensor)
+
+    # TODO: handle this case better
+    else:
+        print("WARNING PLACEHOLDER")
+
+        L_HVs = None
 
     return L_HVs
 
