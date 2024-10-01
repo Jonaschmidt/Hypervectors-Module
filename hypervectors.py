@@ -82,11 +82,11 @@ class Hypervector:
         self.value = value
 
         if tensor != None:
-            self.tensor = tensor
+            self.tensor = tf.cast(tensor, tf.int32)
             self.value = self._generate_value()
             self.size = self.tensor.shape[0]
         else:
-            self.tensor = self._generate_tensor(value=self.value, value_range=value_range, random_method=random_method)
+            self.tensor = tf.cast(self._generate_tensor(value=self.value, value_range=value_range, random_method=random_method), tf.int32)
 
     def _generate_tensor(self, value, value_range: Optional[Tuple[int, int]] = None, random_method: Literal["tf_random", "Sobol"]="tf_random") -> tf.Tensor:
         '''
@@ -137,6 +137,7 @@ class Hypervector:
             sobol_indexer += 1
 
             tensor = tf.convert_to_tensor(_comp_each_to_val(sobol_seqs[sobol_indexer - 1], s_val)[:self.size])
+            tf.cast(tensor, tf.int32)
 
         # TODO: handle this case better
         else:
@@ -229,6 +230,7 @@ def gen_L_HVs(hv_size: Optional[int]=256, value_range: Optional[Tuple[int, int]]
             sobol_indexer += 1
 
             tensor = tf.convert_to_tensor(_comp_each_to_val(sobol_seqs[sobol_indexer - 1], s_val)[:hv_size])
+            tf.cast(tensor, tf.int32)
 
             L_HVs[value] = Hypervector(tensor=tensor)
 
