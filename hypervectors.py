@@ -2,7 +2,7 @@
 # TODO: determine class/function structure
 # TODO: support for binary and polar Hypervectors?
 
-from typing import Literal, Optional, Tuple
+from typing import Literal, Optional, Tuple, Union
 import tensorflow as tf
 import math
 import numpy as np
@@ -241,6 +241,20 @@ def gen_L_HVs(hv_size: Optional[int]=256, value_range: Optional[Tuple[int, int]]
         L_HVs = None
 
     return L_HVs
+
+# generates a Dictionary of "symbolic" or "P" hypervectors for some array
+# TODO: implement sobol generation
+# TODO: docstrings
+# TODO: enforce that symbols must be a list or np.ndarray, and then add further support for more datatypes
+# TODO: non-integer support
+def gen_P_HVs(symbols: Union[list, np.ndarray], hv_size: int = 256):
+    P_HVs = {}
+
+    # tf_random GENERATION
+    for sym in symbols:
+        P_HVs[sym] = Hypervector(size=hv_size)
+
+    return P_HVs
 
 # performs element-wise addition on two Hypervectors and returns the resulting Hypervector
 def add(hv1, hv2):
