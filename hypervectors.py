@@ -215,6 +215,7 @@ def gen_L_HVs(hv_size: Optional[int]=256, value_range: Optional[Tuple[int, int]]
     elif random_method == "Sobol":
         global sobol_dim, sobol_indexer, sobol_seqs
     
+        # initialize Sobol params if needed
         if sobol_seqs is None or sobol_dim < hv_size:
             m = math.ceil(math.log(hv_size, 2))
             sobol_dim = 2**m
@@ -247,12 +248,37 @@ def gen_L_HVs(hv_size: Optional[int]=256, value_range: Optional[Tuple[int, int]]
 # TODO: docstrings
 # TODO: enforce that symbols must be a list or np.ndarray, and then add further support for more datatypes
 # TODO: non-integer support
-def gen_P_HVs(symbols: Union[list, np.ndarray], hv_size: int = 256):
+def gen_P_HVs(sym_arr: Union[list, np.ndarray], hv_size: int = 256, random_method: Literal["tf_random", "Sobol"]="tf_random"):
     P_HVs = {}
 
     # tf_random GENERATION
-    for sym in symbols:
-        P_HVs[sym] = Hypervector(size=hv_size)
+    if random_method == "tf_random":
+        for sym in sym_arr:
+            P_HVs[sym] = Hypervector(size=hv_size)
+
+    # Sobol GENERATION
+    elif random_method == "Sobol":
+        global sobol_dim, sobol_indexer, sobol_seqs
+    
+        # initialize Sobol params if needed
+        if sobol_seqs is None or sobol_dim < hv_size:
+            m = math.ceil(math.log(hv_size, 2))
+            sobol_dim = 2**m
+
+            sobol_engine = qmc.Sobol(d=21_201, scramble=False)  # the maximum number of sequences that can be "generated" by this implementation is 21_201
+                                                                # TODO: uncap this maximum number of sequences
+
+            sobol_samples = sobol_engine.random_base2(m=m)
+            sobol_seqs = np.transpose(sobol_samples)
+        
+        for sym in sym_arr:
+            s_val = 0.5
+            sobol_indexer += 1
+
+            tensor = tf.convert_to_tensor(_comp_each_to_val(sobol_seqs[sobol_indexer - 1], s_val)[:hv_size])
+            tf.cast(tensor, tf.int32)
+
+            P_HVs[sym] = Hypervector(tensor=tensor)
 
     return P_HVs
 
@@ -292,4 +318,9 @@ def cos_similarity(hv1, hv2) -> float:
     cos_sim = dot_product / (norm_tensor1 * norm_tensor2)
 
     return float(cos_sim)
+
+# rotate given vector vec by rot_amt to the left
+# e.g., rot([1,2,3,4], 2) returns [3,4,1,2]
+def hv_rot(hv, rot_amt):
+    return tf.roll(input=hv.tensor, shift=-1 * rot_amt, axis=0)
 

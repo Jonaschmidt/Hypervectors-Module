@@ -1,0 +1,5 @@
+* install requirements (requirements.txt and in setup.py)
+* update setup.py
+* develop a utils.py file with a string cleaning function and some useful constants like alphabet_en
+* built-in string converter (n-grams, etc.)
+
