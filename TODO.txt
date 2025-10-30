@@ -2,4 +2,4 @@
 * update setup.py
 * develop a utils.py file with a string cleaning function and some useful constants like alphabet_en
 * built-in string converter (n-grams, etc.)
-
+* functionality for creating an empty Hypervector (empty=True parameter for the class)
